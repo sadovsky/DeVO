@@ -1,3 +1,3 @@
-module github.com/sadovsk/DeVo
+module github.com/sadovsky/DeVo
 
 go 1.16
