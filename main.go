@@ -1,4 +1,4 @@
-package main
+package DeVO
 
 import (
 	"crypto/sha256"
@@ -19,7 +19,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 
-	. "github.com/sadovsky/DeVO/blockchain"
+	"github.com/sadovsky/DeVO/blockchain"
 )
 
 //initial difficulty
