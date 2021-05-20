@@ -6,7 +6,7 @@ type Block struct {
 	Treats		int
 	Hash		string
 	PrevHash	string
-	Difficult 	int
+	Difficulty 	int
 	Nonce		string
 }
 
