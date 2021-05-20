@@ -107,7 +107,6 @@ func isBlockValid(newBlock,oldBlock Block) bool{
 	return true
 }
 
-<<<<<<< HEAD
 func run() error{
 	mux:=makeMuxRouter()
 	httpAddr:= os.Getenv("PORT")
@@ -119,16 +118,6 @@ func run() error{
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-=======
-//Always take the longer chain
-func replaceChain(newBlocks []Block){
-	if len(newBlocks)>len(Blockchain){
-		Blockchain = newBlocks
-	}
-}
-
-var bcServer chan []Block
->>>>>>> 7e5458a118d4ca6b6cd5fa580b33f8827c95b5be
 
 
 func handleConn(conn net.Conn) {
@@ -136,7 +125,6 @@ func handleConn(conn net.Conn) {
 
 	io.WriteString(conn, "Enter a new BPM:")
 
-<<<<<<< HEAD
 func replaceChain(newBlocks []Block) {
 	if len(newBlocks) > len(Blockchain) {
 		Blockchain = newBlocks
@@ -145,9 +133,6 @@ func replaceChain(newBlocks []Block) {
 
 func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 	var m Message
-=======
-	scanner := bufio.NewScanner(conn)
->>>>>>> 7e5458a118d4ca6b6cd5fa580b33f8827c95b5be
 
 	// take in BPM from stdin and add it to blockchain after conducting necessary validation
 	go func() {
@@ -172,7 +157,6 @@ func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-<<<<<<< HEAD
 	//ensure atomicity when creating new block
     mutex.Lock()
 	newBlock,err := generateBlock(Blockchain[len(Blockchain)-1], m.Treats)
@@ -208,24 +192,6 @@ func respondWithJSON(w http.ResponseWriter, r *http.Request, code int, payload i
 	}
 	w.WriteHeader(code)
 	w.Write(response)
-=======
-// simulate receiving broadcast
-	go func() {
-		for {
-			time.Sleep(30 * time.Second)
-			output, err := json.Marshal(Blockchain)
-			if err != nil {
-				log.Fatal(err)
-			}
-			io.WriteString(conn, string(output))
-		}
-	}()
-
-	for _ = range bcServer {
-		spew.Dump(Blockchain)
-	}
-
->>>>>>> 7e5458a118d4ca6b6cd5fa580b33f8827c95b5be
 }
 
 func main() {
@@ -234,7 +200,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-<<<<<<< HEAD
 	go func() {
 			t := time.Now()
 			genesisBlock := Block{}
@@ -246,15 +211,6 @@ func main() {
 			mutex.Unlock()
 	}()
 	log.Fatal(run())
-=======
-	bcServer = make(chan []Block)
-
-	t := time.Now()
-	genesisBlock := Block{0, t.String(), 0, "", ""}
-	genesisBlock.Hash = calculateHash(genesisBlock)
-	spew.Dump(genesisBlock)
-	Blockchain = append(Blockchain, genesisBlock)
->>>>>>> 7e5458a118d4ca6b6cd5fa580b33f8827c95b5be
 
 	server, err := net.Listen("tcp", ":"+os.Getenv("PORT"))
 	if err != nil {
