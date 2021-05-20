@@ -13,6 +13,7 @@ import (
 	"sync"
 	"strings"
 	"fmt"
+	"math/rand"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
@@ -25,7 +26,7 @@ const difficulty = 1
 type Block struct {
 	Index		int
 	Timestamp	string
-	BPM			int
+	Treats		int
 	Hash		string
 	PrevHash	string
 	Difficulty 	int
@@ -35,13 +36,13 @@ type Block struct {
 var Blockchain []Block
 
 type Message struct {
-	BPM int
+	Treats int
 }
 
 var mutex = &sync.Mutex{}
 
 func calculateHash(block Block) string{
-	record:=strconv.Itoa(block.Index) + block.Timestamp + strconv.Itoa(block.BPM)+block.PrevHash+block.Nonce
+	record:=strconv.Itoa(block.Index) + block.Timestamp + strconv.Itoa(block.Treats)+block.PrevHash+block.Nonce
 	h:= sha256.New()
 	h.Write([]byte(record))
 	hashed:=h.Sum(nil)
@@ -53,24 +54,30 @@ func isHashValid(hash string, difficulty int) bool {
         return strings.HasPrefix(hash, prefix)
 }
 
-func generateBlock(oldBlock Block, BPM int) (Block, error){
+func generateBlock(oldBlock Block, Treats int) (Block, error){
 	var newBlock Block
 
 	t:=time.Now()
 
+	//calc difficulty increase, if any
+	var increase int = 0
+	if rand.Intn(100) > 90{
+		increase =1
+	}
+
 	newBlock.Index=oldBlock.Index+1
 	newBlock.Timestamp=t.String()
-	newBlock.BPM=BPM
+	newBlock.Treats=Treats
 	newBlock.PrevHash=oldBlock.Hash
 	newBlock.Hash=calculateHash(newBlock)
-	newBlock.Difficulty = difficulty
+	newBlock.Difficulty = oldBlock.Difficulty+increase
 
 	for i := 0; ; i++ {
 			hex := fmt.Sprintf("%x", i)
 			newBlock.Nonce = hex
 			if !isHashValid(calculateHash(newBlock), newBlock.Difficulty) {
 					fmt.Println(calculateHash(newBlock), " do more work!")
-					time.Sleep(time.Second) //simulate time
+					//time.Sleep(time.Second) //simulate time
 					continue
 			} else {
 					fmt.Println(calculateHash(newBlock), " work done!")
@@ -127,6 +134,12 @@ func handleGetBlockchain(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(bytes))
 }
 
+func replaceChain(newBlocks []Block) {
+	if len(newBlocks) > len(Blockchain) {
+		Blockchain = newBlocks
+	}
+}
+
 func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 	var m Message
 
@@ -139,7 +152,7 @@ func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 
 	//ensure atomicity when creating new block
     mutex.Lock()
-	newBlock,err := generateBlock(Blockchain[len(Blockchain)-1], m.BPM)
+	newBlock,err := generateBlock(Blockchain[len(Blockchain)-1], m.Treats)
 	mutex.Unlock()
 	if err != nil {
 		respondWithJSON(w, r, http.StatusInternalServerError, m)
@@ -147,7 +160,8 @@ func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isBlockValid(newBlock, Blockchain[len(Blockchain)-1]) {
-		Blockchain:= append(Blockchain, newBlock)
+		newBlockchain := append(Blockchain, newBlock)
+		replaceChain(newBlockchain)
 		spew.Dump(Blockchain)
 	}
 
