@@ -1,15 +1,13 @@
 package main
 
 import (
-	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log"
-	"net"
+	"net/http"
 	"os"
-	"strconv"
 	"time"
 	"strconv"
 	"sync"
@@ -18,6 +16,7 @@ import (
 	"math/rand"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
 
@@ -119,11 +118,21 @@ func run() error{
 		MaxHeaderBytes: 1 << 20,
 	}
 
+	if err := s.ListenAndServe(); err != nil {
+		return err
+	}
 
-func handleConn(conn net.Conn) {
-	defer conn.Close()
+	return nil
+}
 
-	io.WriteString(conn, "Enter a new BPM:")
+func handleGetBlockchain(w http.ResponseWriter, r *http.Request) {
+	bytes, err := json.MarshalIndent(Blockchain, "", "  ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	io.WriteString(w, string(bytes))
+}
 
 func replaceChain(newBlocks []Block) {
 	if len(newBlocks) > len(Blockchain) {
@@ -134,28 +143,12 @@ func replaceChain(newBlocks []Block) {
 func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 	var m Message
 
-	// take in BPM from stdin and add it to blockchain after conducting necessary validation
-	go func() {
-		for scanner.Scan() {
-			bpm, err := strconv.Atoi(scanner.Text())
-			if err != nil {
-				log.Printf("%v not a number: %v", scanner.Text(), err)
-				continue
-			}
-			newBlock, err := generateBlock(Blockchain[len(Blockchain)-1], bpm)
-			if err != nil {
-				log.Println(err)
-				continue
-			}
-			if isBlockValid(newBlock, Blockchain[len(Blockchain)-1]) {
-				newBlockchain := append(Blockchain, newBlock)
-				replaceChain(newBlockchain)
-			}
-
-			bcServer <- Blockchain
-			io.WriteString(conn, "\nEnter a new BPM:")
-		}
-	}()
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&m); err != nil {
+		respondWithJSON(w, r, http.StatusBadRequest, r.Body)
+		return
+	}
+	defer r.Body.Close()
 
 	//ensure atomicity when creating new block
     mutex.Lock()
@@ -195,7 +188,7 @@ func respondWithJSON(w http.ResponseWriter, r *http.Request, code int, payload i
 }
 
 func main() {
-	err := godotenv.Load() 
+	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -212,17 +205,4 @@ func main() {
 	}()
 	log.Fatal(run())
 
-	server, err := net.Listen("tcp", ":"+os.Getenv("PORT"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer server.Close()
-
-	for {
-		conn, err := server.Accept()
-		if err != nil {
-			log.Fatal(err)
-		}
-		go handleConn(conn)
-	}
 }
