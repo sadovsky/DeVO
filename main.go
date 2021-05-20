@@ -1,4 +1,4 @@
-package main
+package DeVO
 
 import (
 	"crypto/sha256"
