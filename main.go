@@ -18,22 +18,12 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
+
+	. "github.com/sadovsky/DeVO/blockchain"
 )
 
 //initial difficulty
 const difficulty = 1
-
-type Block struct {
-	Index		int
-	Timestamp	string
-	Treats		int
-	Hash		string
-	PrevHash	string
-	Difficulty 	int
-	Nonce		string
-}
-
-var Blockchain []Block
 
 type Message struct {
 	Treats int
