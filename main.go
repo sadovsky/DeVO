@@ -1,13 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"io"
 	"log"
-	"net/http"
+	"net"
 	"os"
+	"strconv"
 	"time"
 	"strconv"
 	"sync"
@@ -16,7 +18,6 @@ import (
 	"math/rand"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/gorilla/mux"
 	"github.com/joho/godotenv"
 )
 
@@ -106,6 +107,7 @@ func isBlockValid(newBlock,oldBlock Block) bool{
 	return true
 }
 
+<<<<<<< HEAD
 func run() error{
 	mux:=makeMuxRouter()
 	httpAddr:= os.Getenv("PORT")
@@ -117,23 +119,24 @@ func run() error{
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-
-	if err := s.ListenAndServe(); err != nil {
-		return err
+=======
+//Always take the longer chain
+func replaceChain(newBlocks []Block){
+	if len(newBlocks)>len(Blockchain){
+		Blockchain = newBlocks
 	}
-
-	return nil
 }
 
-func handleGetBlockchain(w http.ResponseWriter, r *http.Request) {
-	bytes, err := json.MarshalIndent(Blockchain, "", "  ")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	io.WriteString(w, string(bytes))
-}
+var bcServer chan []Block
+>>>>>>> 7e5458a118d4ca6b6cd5fa580b33f8827c95b5be
 
+
+func handleConn(conn net.Conn) {
+	defer conn.Close()
+
+	io.WriteString(conn, "Enter a new BPM:")
+
+<<<<<<< HEAD
 func replaceChain(newBlocks []Block) {
 	if len(newBlocks) > len(Blockchain) {
 		Blockchain = newBlocks
@@ -142,14 +145,34 @@ func replaceChain(newBlocks []Block) {
 
 func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 	var m Message
+=======
+	scanner := bufio.NewScanner(conn)
+>>>>>>> 7e5458a118d4ca6b6cd5fa580b33f8827c95b5be
 
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&m); err != nil {
-		respondWithJSON(w, r, http.StatusBadRequest, r.Body)
-		return
-	}
-	defer r.Body.Close()
+	// take in BPM from stdin and add it to blockchain after conducting necessary validation
+	go func() {
+		for scanner.Scan() {
+			bpm, err := strconv.Atoi(scanner.Text())
+			if err != nil {
+				log.Printf("%v not a number: %v", scanner.Text(), err)
+				continue
+			}
+			newBlock, err := generateBlock(Blockchain[len(Blockchain)-1], bpm)
+			if err != nil {
+				log.Println(err)
+				continue
+			}
+			if isBlockValid(newBlock, Blockchain[len(Blockchain)-1]) {
+				newBlockchain := append(Blockchain, newBlock)
+				replaceChain(newBlockchain)
+			}
 
+			bcServer <- Blockchain
+			io.WriteString(conn, "\nEnter a new BPM:")
+		}
+	}()
+
+<<<<<<< HEAD
 	//ensure atomicity when creating new block
     mutex.Lock()
 	newBlock,err := generateBlock(Blockchain[len(Blockchain)-1], m.Treats)
@@ -185,14 +208,33 @@ func respondWithJSON(w http.ResponseWriter, r *http.Request, code int, payload i
 	}
 	w.WriteHeader(code)
 	w.Write(response)
+=======
+// simulate receiving broadcast
+	go func() {
+		for {
+			time.Sleep(30 * time.Second)
+			output, err := json.Marshal(Blockchain)
+			if err != nil {
+				log.Fatal(err)
+			}
+			io.WriteString(conn, string(output))
+		}
+	}()
+
+	for _ = range bcServer {
+		spew.Dump(Blockchain)
+	}
+
+>>>>>>> 7e5458a118d4ca6b6cd5fa580b33f8827c95b5be
 }
 
 func main() {
-	err := godotenv.Load()
+	err := godotenv.Load() 
 	if err != nil {
 		log.Fatal(err)
 	}
 
+<<<<<<< HEAD
 	go func() {
 			t := time.Now()
 			genesisBlock := Block{}
@@ -204,5 +246,27 @@ func main() {
 			mutex.Unlock()
 	}()
 	log.Fatal(run())
+=======
+	bcServer = make(chan []Block)
 
+	t := time.Now()
+	genesisBlock := Block{0, t.String(), 0, "", ""}
+	genesisBlock.Hash = calculateHash(genesisBlock)
+	spew.Dump(genesisBlock)
+	Blockchain = append(Blockchain, genesisBlock)
+>>>>>>> 7e5458a118d4ca6b6cd5fa580b33f8827c95b5be
+
+	server, err := net.Listen("tcp", ":"+os.Getenv("PORT"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer server.Close()
+
+	for {
+		conn, err := server.Accept()
+		if err != nil {
+			log.Fatal(err)
+		}
+		go handleConn(conn)
+	}
 }
