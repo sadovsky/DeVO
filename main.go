@@ -1,4 +1,4 @@
-package DeVO
+package main
 
 import (
 	"crypto/sha256"
@@ -31,7 +31,7 @@ type Message struct {
 
 var mutex = &sync.Mutex{}
 
-func calculateHash(block Block) string{
+func calculateHash(block blockchain.Block) string{
 	record:=strconv.Itoa(block.Index) + block.Timestamp + strconv.Itoa(block.Treats)+block.PrevHash+block.Nonce
 	h:= sha256.New()
 	h.Write([]byte(record))
@@ -44,8 +44,8 @@ func isHashValid(hash string, difficulty int) bool {
         return strings.HasPrefix(hash, prefix)
 }
 
-func generateBlock(oldBlock Block, Treats int) (Block, error){
-	var newBlock Block
+func generateBlock(oldBlock blockchain.Block, Treats int) (blockchain.Block, error){
+	var newBlock blockchain.Block
 
 	t:=time.Now()
 
@@ -80,7 +80,7 @@ func generateBlock(oldBlock Block, Treats int) (Block, error){
 	return newBlock, nil
 }
 
-func isBlockValid(newBlock,oldBlock Block) bool{
+func isBlockValid(newBlock,oldBlock blockchain.Block) bool{
 	if oldBlock.Index+1!=newBlock.Index{
 		return false
 	}
@@ -116,7 +116,7 @@ func run() error{
 }
 
 func handleGetBlockchain(w http.ResponseWriter, r *http.Request) {
-	bytes, err := json.MarshalIndent(Blockchain, "", "  ")
+	bytes, err := json.MarshalIndent(blockchain.Blockchain, "", "  ")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -124,9 +124,9 @@ func handleGetBlockchain(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, string(bytes))
 }
 
-func replaceChain(newBlocks []Block) {
-	if len(newBlocks) > len(Blockchain) {
-		Blockchain = newBlocks
+func replaceChain(newBlocks []blockchain.Block) {
+	if len(newBlocks) > len(blockchain.Blockchain) {
+		blockchain.Blockchain = newBlocks
 	}
 }
 
@@ -142,17 +142,17 @@ func handleWriteBlock(w http.ResponseWriter, r *http.Request) {
 
 	//ensure atomicity when creating new block
     mutex.Lock()
-	newBlock,err := generateBlock(Blockchain[len(Blockchain)-1], m.Treats)
+	newBlock,err := generateBlock(blockchain.Blockchain[len(blockchain.Blockchain)-1], m.Treats)
 	mutex.Unlock()
 	if err != nil {
 		respondWithJSON(w, r, http.StatusInternalServerError, m)
 		return
 	}
 
-	if isBlockValid(newBlock, Blockchain[len(Blockchain)-1]) {
-		newBlockchain := append(Blockchain, newBlock)
+	if isBlockValid(newBlock, blockchain.Blockchain[len(blockchain.Blockchain)-1]) {
+		newBlockchain := append(blockchain.Blockchain, newBlock)
 		replaceChain(newBlockchain)
-		spew.Dump(Blockchain)
+		spew.Dump(blockchain.Blockchain)
 	}
 
 	respondWithJSON(w, r, http.StatusCreated, newBlock)
@@ -185,12 +185,12 @@ func main() {
 
 	go func() {
 			t := time.Now()
-			genesisBlock := Block{}
-			genesisBlock = Block{0, t.String(), 0, calculateHash(genesisBlock), "", difficulty, ""} 
+			genesisBlock := blockchain.Block{}
+			genesisBlock = blockchain.Block{0, t.String(), 0, calculateHash(genesisBlock), "", difficulty, ""} 
 			spew.Dump(genesisBlock)
 
 			mutex.Lock()
-			Blockchain = append(Blockchain, genesisBlock)
+			blockchain.Blockchain = append(blockchain.Blockchain, genesisBlock)
 			mutex.Unlock()
 	}()
 	log.Fatal(run())
